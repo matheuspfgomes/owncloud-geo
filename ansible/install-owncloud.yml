@@ -1,0 +1,78 @@
+---
+- name: Instalacao do ownCloud
+  hosts: owncloud
+  become: yes
+  become_method: sudo
+  become_user: root
+  tasks:
+
+  - name: Atualizando OS
+    apt:
+      upgrade: dist
+      update_cache: yes
+
+  - name: Instalando dependencias do docker
+    apt:
+      name: "{{ item }}"
+      update_cache: true 
+      state: present
+    with_items:
+      - 'debian-keyring'
+      - 'debian-archive-keyring'
+      - 'apt-transport-https'
+      - 'ca-certificates'
+      - 'gnupg2'
+      - 'curl'
+
+  - name: Adicionando chave repo docker
+    apt_key:
+      id: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+      keyserver: hkp://pool.sks-keyservers.net
+      state: present
+
+  - name: Adicionando repositorio do docker
+    apt_repository:
+     repo: deb https://download.docker.com/linux/debian stretch stable
+     state: present
+     update_cache: yes
+
+  - name: Instalando Docker
+    apt:
+      name: docker-ce
+      state: present
+
+  - name: Instalando docker-compose
+    apt:
+      name: docker-compose
+      state: present
+      update_cache: yes
+
+  - name: Adicionando usuario ao grupo docker
+    user:
+      name: owncloud-user
+      group: docker
+      append: yes
+
+  - name: Inicializando docker
+    systemd: name=docker state=started
+
+  - name: Criando diretorio ownCloud docker-compose
+    file:
+      path: /home/owncloud-user/ownCloud
+      state: directory
+      owner: owncloud-user
+      group: owncloud-user
+      mode: 0775
+
+  - name: Copiando docker-compose file ownCloud
+    copy:
+      src: ~/owncloud-geo/ownCloud/docker-compose.yml
+      dest: /home/owncloud-user/ownCloud/docker-compose.yml
+      owner: owncloud-user
+      group: owncloud-user
+      mode: 0644
+
+  - name: Instalando ownCloud
+    docker_service:
+      project_src: /home/owncloud-user/ownCloud
+
